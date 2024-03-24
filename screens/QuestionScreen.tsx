@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QUESTIONS_LIST } from '../api/List';
 
-const questionsData = require('../data/questions.json');
+// const questionsData = require('../data/questions.json');
 
 interface AnswerStructure {
   text: string;
   correct: boolean;
 }
 
-interface QuestionStructure {
+export interface QuestionStructure {
   question: string;
   answers: AnswerStructure[];
   id: string;
@@ -44,16 +45,24 @@ const Question = React.memo(({ question, onSelectAnswer, questionIndex, selected
 
 const QuestionScreen: React.FC = () => {
   const [questions, setQuestions] = useState<QuestionStructure[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersState>(new Array(questionsData.length).fill(null));
+  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersState>(new Array(0).fill(null));
   const [score, setScore] = useState<number>(0);
 
   useEffect(() => {
-    const shuffledQuestions = questionsData.map((question: QuestionStructure, index: number) => ({
-      ...question,
-      answers: [...question.answers].sort(() => Math.random() - 0.5),
-      id: index.toString(),
-    })).sort(() => Math.random() - 0.5);
-    setQuestions(shuffledQuestions.slice(0, 20));
+    const fetchData = async () => {
+      try {
+        const response: any = await QUESTIONS_LIST()
+        const shuffledQuestions = response.lists.map((question: QuestionStructure) => ({
+          ...question,
+          answers: [...question.answers].sort(() => Math.random() - 0.5),
+        })).sort(() => Math.random() - 0.5);
+        setQuestions(shuffledQuestions.slice(0, 20));
+      } catch (err) {
+        console.log('error', err);
+      }
+    };
+
+    fetchData();
   }, []);
 
   const handleAnswer = useCallback((answerIndex: number, questionIndex: number) => {
@@ -82,13 +91,16 @@ const QuestionScreen: React.FC = () => {
     } catch (e) {
       console.error("Failed to save score", e);
     } finally {
-      setSelectedAnswers(new Array(questionsData.length).fill(null))
+      setSelectedAnswers(new Array(0).fill(null))
       setScore(0)
     }
   }, [score]);
 
   return (
     <SafeAreaView style={styles.container}>
+      {questions?.length == 0 && <Text>ไม่พบข้อมูล กรุณา run backend จาก test ข้อ backend</Text>}
+
+
       <FlatList
         data={questions}
         extraData={selectedAnswers}
